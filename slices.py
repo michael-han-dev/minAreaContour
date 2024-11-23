@@ -174,7 +174,14 @@ def buildTriangles( slice0, slice1 ):
     #
     # minV0 = ...     # closest vertex on top slice
     # minV1 = ...     # closest vertex on bottom slice
-
+    minDist = float('inf')
+    for v0 in slice0.verts:
+        for v1 in slice1.verts:
+            d = length(subtract(v0.coords, v1.coords))
+            if d < minDist:
+                minDist = d
+                minV0 = v0
+                minV1 = v1
 
     # Make a cyclic permutation of the vertices of each slice,
     # that starts at the closest vertex in each slice found above.
@@ -187,8 +194,13 @@ def buildTriangles( slice0, slice1 ):
 
     # [YOUR CODE HERE]
 
-    verts0 = []  # list of top slice vertices
-    verts1 = []  # list of bottom slice vertices
+    index0 = slice0.verts.index(minV0)
+    verts0 = slice0.verts[index0:] + slice0.verts[:index0]
+    verts0.append(verts0[0])
+
+    index1 = slice1.verts.index(minV1)
+    verts1 = slice1.verts[index1:] + slice1.verts[:index1]
+    verts1.append(verts1[0])
 
     
     # Set up the 'minArea' array.  The first dimension (rows) of the
@@ -204,9 +216,11 @@ def buildTriangles( slice0, slice1 ):
 
     # [YOUR CODE HERE]
 
+    rows = len(verts1)
+    cols = len(verts0)
 
-    minArea = [[None]] # CHANGE THIS
-    minDir  = [[None]] # CHANGE THIS
+    minArea = [[0 for _ in range(cols)] for _ in range(rows)]
+    minDir = [[None for _ in range(cols)] for _ in range(rows)]
 
 
     # Fill in the minArea array
@@ -220,8 +234,10 @@ def buildTriangles( slice0, slice1 ):
 
 
     # [YOUR CODE HERE]
-
-
+    for c in range(1, cols):
+        area = minArea[0][c - 1] + triangleArea(verts1[0].coords, verts0[c - 1].coords, verts0[c].coords)
+        minArea[0][c] = area
+        minDir[0][c] = Dir.PREV_COL
     # Fill in col 0 of minArea and minDir, since it's a special case
     # as there's no col -1 so only one condition is checked.
     #
@@ -229,8 +245,10 @@ def buildTriangles( slice0, slice1 ):
     
 
     # [YOUR CODE HERE]
-
-
+    for r in range(1, rows):
+        area = minArea[r - 1][0] + triangleArea(verts0[0].coords, verts1[r - 1].coords, verts1[r].coords)
+        minArea[r][0] = area
+        minDir[r][0] = Dir.PREV_ROW
     # Fill in the remaining entries of minArea and minDir.  This is
     # very similar to the above, but more general because both
     # conditions are checked.
@@ -239,7 +257,17 @@ def buildTriangles( slice0, slice1 ):
 
 
     # [YOUR CODE HERE]
+    for r in range(1, rows):
+        for c in range(1, cols):
+            area_from_prev_row = minArea[r - 1][c] + triangleArea(verts0[c].coords, verts1[r - 1].coords, verts1[r].coords)
+            area_from_prev_col = minArea[r][c - 1] + triangleArea(verts1[r].coords, verts0[c - 1].coords, verts0[c].coords)
 
+            if area_from_prev_row < area_from_prev_col:
+                minArea[r][c] = area_from_prev_row
+                minDir[r][c] = Dir.PREV_ROW
+            else:
+                minArea[r][c] = area_from_prev_col
+                minDir[r][c] = Dir.PREV_COL
 
     # It's useful for debugging at this point to print out the minArea
     # and minDir arrays together.  For example, print a table in which
@@ -251,11 +279,11 @@ def buildTriangles( slice0, slice1 ):
     #
     #                0       1       2       3       4   
     #
-    #        0       0 .   120 -   579 -  1055 -  1175 - 
-    #        1     120 |   210 -   300 -   766 -  1233 - 
-    #        2     585 |   300 |   420 -   540 -  1015 - 
-    #        3    1051 |   758 |   540 |   690 -   840 - 
-    #        4    1171 |  1217 |  1005 |   840 |   960 -
+    #        0       0 .    90 -   556 -  1023 -  1113 - 
+    #        1      90 |   210 -   330 -   805 -  1203 | 
+    #        2     548 |   330 |   480 -   630 -  1096 - 
+    #        3    1007 |   795 |   630 |   750 -   870 - 
+    #        4    1097 |  1187 -  1104 |   870 |   960 -
     #
     #
     # The 960 at row, column [4][4] is the minium area.  The hypen (-)
@@ -288,18 +316,29 @@ def buildTriangles( slice0, slice1 ):
     #
     # [3 marks]
 
+
     triangles = []
 
-
     # [YOUR CODE HERE]
-    #
-    # Each new triangle is added as
-    #
-    #   triangles.append( Triangle( listOfThreeVertices ) )
+    r, c = rows - 1, cols - 1
 
+    while r > 0 or c > 0:
+        if minDir[r][c] == Dir.PREV_ROW:
+            triangle = Triangle([verts0[c], verts1[r - 1], verts1[r]])
+            triangles.append(triangle)
+            r -= 1
+        elif minDir[r][c] == Dir.PREV_COL:
+            triangle = Triangle([verts1[r], verts0[c - 1], verts0[c]])
+            triangles.append(triangle)
+            c -= 1
+        else:
+            # Handle the case where minDir[r][c] is None or invalid
+            pass
+
+    triangles.reverse()
 
     # Return a list of the triangles that you constructed
-    
+
     return triangles
 
 
